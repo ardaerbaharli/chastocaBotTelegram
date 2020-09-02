@@ -35,15 +35,20 @@ namespace chastocaBot_Telegram
             string message = e.Message.Text;
             string username = e.Message.From.Username;
             string bot = "chastocaBot";
+            string commands = "\n\n *Commands* " +
+                   "\n\n !feedback <Tell me how to improve the bot!>" +
+                   "\n !help" +
+                   "\n !commands" +
+                   "\n !win" +
+                   "\n !wincount" +
+                   "\n !leaderboard" +
+                   "\n !pu" +
+                   "\n !woo" +
+                   "\n !cocktails";
+            string rules = "*To use some features of the bot you should set an username! *" + commands;
 
-            if (e.Message.Text != null)
+            if (message != null)
             {
-                string rules = "*To use the bot you should set an username! *" +
-                    "\n\n *Commands* " +
-                    "\n\n !win" +
-                    "\n !wincount" +
-                    "\n !leaderboard" +
-                    "\n !pu";
 
                 LogHandler.Log(message, username);
 
@@ -51,19 +56,41 @@ namespace chastocaBot_Telegram
                 {
                     await botClient.SendTextMessageAsync(e.Message.Chat, rules, ParseMode.Markdown);
                 }
+                else if (message.Equals("!feedback"))
+                {
+                    string feedback = "";
+                    feedback += "username: ";
+                    feedback += message.Substring(10);
+                    LogHandler.Log(feedback, "FEEDBACKS");
+                    answer = "Thank you for your feedback!";
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("!help"))
+                {
+                    await botClient.SendTextMessageAsync(e.Message.Chat, rules, ParseMode.Markdown);
+                }
+                else if (message.Equals("!commands"))
+                {
+                    await botClient.SendTextMessageAsync(e.Message.Chat, commands, ParseMode.Markdown);
+                }
+                else if (message.Equals("!woo"))
+                {
+                    answer = "*WOHOO*";
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
                 else if (message.Equals("!pu"))
                 {
                     answer = "*pu*";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
-                else if (message.Equals("!win"))
+                else if (message.Equals("!win") && username != null)
                 {
                     counter = CommandHandler.AddCounter("!win", username);
                     answer = "Win count of " + username + ": " + counter;
                     LogHandler.Log(answer, bot);
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
-                else if (message.Equals("!wincount"))
+                else if (message.Equals("!wincount") && username != null)
                 {
                     counter = CommandHandler.FindCounterAnswer("!win", username);
                     answer = "Win count of " + username + ": " + counter;
@@ -74,7 +101,6 @@ namespace chastocaBot_Telegram
                 {
                     answer = "*---Leaderboard---*\n";
                     string[,] leaderboard = CommandHandler.GetLeaderboard("!win");
-                    LogHandler.Log("--- LEADERBOARD ---", bot);
                     for (int i = 0; i < 5; i++)
                     {
                         if (leaderboard[i, 0] != null)
@@ -88,7 +114,7 @@ namespace chastocaBot_Telegram
                 }
                 else if (message.Equals("!cocktails"))
                 {
-                    var categories = new[] { "Gin", "Vodka", "Tequila", "Rum", "Whiskey", "Mix", "Syrups", "Alcohol free" };
+                    var categories = new[] { "Gin", "Vodka", "Tequila", "Rum", "Whiskey", "Mix", "Syrups", "Alcohol free", "Shots" };
                     var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
                         .ToArray();
                     var selections = new ReplyKeyboardMarkup(buttons);
@@ -101,7 +127,7 @@ namespace chastocaBot_Telegram
                 }
                 else if (message.Equals("Gin"))
                 {
-                    var categories = new[] { "Basil Smash", "Bees Kness", "Bramble", "Clover Club", "Fresh 75", "Gin Fizz", "Tom collins", "Cosmo x Breakfast Martini" };
+                    var categories = new[] { "Basil Smash", "Bees Kness", "Bramble", "Clover Club", "Fresh 75", "Gin Fizz", "Tom collins", "Cosmo x Breakfast Martini", "Go Back" };
                     var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
                         .ToArray();
                     var selections = new ReplyKeyboardMarkup(buttons);
@@ -121,7 +147,7 @@ namespace chastocaBot_Telegram
                     answer += "\n - 22.5ml Fresh lemon juice (3/4 oz)";
                     answer += "\n - 22.5ml Simple syrup (3/4 oz)";
                     answer += "\n - 2-3 Springs of fresh basil";
-                    answer += "\n-- You can use to garnish.";
+                    answer += "\n\n - Garnish with a spring of basil.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Bees Kness"))
@@ -132,7 +158,7 @@ namespace chastocaBot_Telegram
                     answer += "\n - 60ml Gin (2 oz)";
                     answer += "\n - 15ml Fresh lemon juice (1/2 oz)";
                     answer += "\n - 15ml Honey syrup (1/2 oz)";
-                    answer += "\n-- You can use twist of lemon or wheel to garnish.";
+                    answer += "\n\n - You can use twist of lemon or wheel to garnish.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Bramble"))
@@ -140,11 +166,12 @@ namespace chastocaBot_Telegram
                     answer = "*--Bramble--*";
                     answer += "\nIn 1984, London Bartender, tweaked a classic gin sour by adding Creme de Mure. Use crushed ice so that the Creme de Mure cascades down making a nice visual effect whilst adding a great balance of sweet, tart and fruitiness..";
                     answer += "\n\n* INGREDIENTS*";
-                    answer += "\n - 60ml Gin (2 oz)";
+                    answer += "\n - 45ml Gin (3/2 oz)";
                     answer += "\n - 22.5ml Fresh lemon juice (3/4 oz)";
                     answer += "\n - 22.5ml Simple syrup (3/4 oz)";
-                    answer += "\n - 2-3 Springs of fresh basil";
-                    answer += "\n-- You can use to garnish.";
+                    answer += "\n - 22.5ml Creme de Mure (3/4 oz)";
+                    answer += "\n\n - Add all the ingredients except the Creme de Mure and shake and strain over fresh ice into a double old fashioned glass and add the Creme de Mure.";
+                    answer += "\n - Garnish with skewered blackberries or a a twist of lemon.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Clover Club"))
@@ -156,7 +183,7 @@ namespace chastocaBot_Telegram
                     answer += "\n - 22.5ml Fresh lemon juice (3/4 oz)";
                     answer += "\n - 22.5ml Raspberry syrup (3/4 oz)";
                     answer += "\n - Fresh egg white (half a small egg)";
-                    answer += "\n-- Traditionally served with no garnish but you can utilise a lemon twist or skewered raspberry if you like.";
+                    answer += "\n\n - Traditionally served with no garnish but you can utilise a lemon twist or skewered raspberry if you like.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Fresh 75"))
@@ -191,7 +218,6 @@ namespace chastocaBot_Telegram
                     answer += "\n - 22.5ml Fresh lemon juice (3/4 oz)";
                     answer += "\n - 15ml Simple syrup (1/2  oz)";
                     answer += "\n - Dash of Soda";
-                    answer += "\n - Some Collins' recipes call for a dash or two of bitters but i usually omit this.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Cosmo x Breakfast Martini"))
@@ -206,7 +232,7 @@ namespace chastocaBot_Telegram
                 }
                 else if (message.Equals("Vodka"))
                 {
-                    var categories = new[] { "Caipiroska", "Chocolote Martini", "Lemon Drop Martini", "Espresso Martini", "Moscow Mule" };
+                    var categories = new[] { "Caipiroska", "Chocolote Martini", "Lemon Drop Martini", "Espresso Martini", "Moscow Mule", "Go Back" };
                     var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
                         .ToArray();
                     var selections = new ReplyKeyboardMarkup(buttons);
@@ -225,7 +251,7 @@ namespace chastocaBot_Telegram
                     answer += "\n - 60ml Vodka (2 oz)";
                     answer += "\n - 1/2 Lime";
                     answer += "\n - 2 Heaped teaspoons of sugar (preferably brown)";
-                    answer += "\n-- Garnish with a lime wheel or wedge";
+                    answer += "\n\n - Garnish with a lime wheel or wedge";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Chocolote Martini"))
@@ -257,6 +283,7 @@ namespace chastocaBot_Telegram
                     answer += "\n - 30ml Espresso (1 oz)";
                     answer += "\n - 15ml Coffee liqueur (1/2 oz)";
                     answer += "\n - 7.5ml 1:1 Simple syrup (3/4 oz)";
+                    answer += "\n\n - Garnish 3-4 coffe beans.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Moscow Mule"))
@@ -271,7 +298,7 @@ namespace chastocaBot_Telegram
                 }
                 else if (message.Equals("Tequila"))
                 {
-                    var categories = new[] { "Margarita" };
+                    var categories = new[] { "Cucumber & Jalapeno Margarita", "The Frozen Margarita", "Mexican Bulldog", "Go Back" };
                     var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
                         .ToArray();
                     var selections = new ReplyKeyboardMarkup(buttons);
@@ -282,20 +309,50 @@ namespace chastocaBot_Telegram
                         replyToMessageId: e.Message.MessageId,
                         replyMarkup: selections);
                 }
-                else if (message.Equals("Margarita"))
+                else if (message.Equals("Cucumber & Jalapeno Margarita"))
                 {
-                    answer = "*--Margarita--*";
-                    answer += "\nAccording to cocktail historian David Wondrich, the margarita is merely a popular Mexican and American drink, the Daisy (margarita is Spanish for “daisy”), remade with tequila instead of brandy, which became popular during Prohibition as people drifted over the border for alcohol. There is an account from 1936 of Iowa newspaper editor James Graham finding such a cocktail in Tijuana, years before any of the other margarita “creation myths”.";
+                    answer = "*--Cucumber & Jalapeno Margarita--*";
+                    answer += "\nA spicy variation on a classic Margarita! The spicy jalapenos pair nicely with the cooling properties of fresh cucumber. Adds a little bit of a kick to your standard Margarita.";
                     answer += "\n\n* INGREDIENTS*";
-                    answer += "\n - ";
-                    answer += "\n - ";
-                    answer += "\n - ";
+                    answer += "\n - 45ml Tequila Bianco (3/2 oz) ";
+                    answer += "\n - 15ml Triple Sec or Cointreau (1/2 oz)";
+                    answer += "\n - 30mL Fresh lime juice (1 oz)";
+                    answer += "\n - Cucumber";
+                    answer += "\n - Jalapeno";
+                    answer += "\n\n - Muddle cucumber and if you want it to be really hot you can also muddle jalapeno. Shake with ice and pour into a glass without straining.";
+                    answer += "\n - Garnish with 2 slices of jalapeno and a slice of cucumber.";
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("The Frozen Margarita"))
+                {
+                    answer = "*--Cucumber & Jalapeno Margarita--*";
+                    answer += "\nThe Frozen Margarita is the perfect summer, Tequila cocktail with versatility. Utilise a multitude of different fruits to customise your Margarita!";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 45ml Tequila (3/2 oz) ";
+                    answer += "\n - 15ml Triple Sec or Cointreau (1/2 oz)";
+                    answer += "\n - 30mL Fresh lime juice (1 oz)";
+                    answer += "\n - Mango puree, pulp or cheeks";
+                    answer += "\n\n - After you combine all the ingredients, blend for 20-30 seconds or until smooth.";
+                    answer += "\n - Garnish with a lime wheel.";
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("Mexican Bulldog"))
+                {
+                    answer = "*--Mexican Bulldog--*";
+                    answer += "\nThe Mexican Bulldog a.k.a Frozen Coronita Margarita is the perfect beer cocktail for a hot summers day. It combines refreshing cold beer with a citrusy, tequila-based cocktail, the Margarita!";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 60ml Tequila (2 oz) ";
+                    answer += "\n - 22.5ml Triple Sec or Cointreau (3/4 oz)";
+                    answer += "\n - 37.5mL Fresh lime juice (5/4 oz)";
+                    answer += "\n - Corona Beer";
+                    answer += "\n\n - Combine all ingredients except the beer and blend with ice for 20-30 seconds or until smooth. Pour into a large glass and upturn your Corona beer into the glass";
+                    answer += "\n - Garnish with a lime wedge.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Rum"))
                 {
 
-                    var categories = new[] { "Mojito" };
+                    var categories = new[] { "Mojito", "Daiquiri", "Dark & Stormy", "Cuba Libre", "Pina Colada", "Go Back" };
                     var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
                         .ToArray();
                     var selections = new ReplyKeyboardMarkup(buttons);
@@ -309,22 +366,83 @@ namespace chastocaBot_Telegram
                 else if (message.Equals("Mojito"))
                 {
                     answer = "*--Mojito--*";
-                    answer += "\nThe Mojito cocktail is the quintessential classic Cuban cocktail. A simply constructed drink with fresh ingredients. White rum, fresh lime juice, sugar and fresh mint makes for a delicious and refreshing Mojito.";
+                    answer += "\nThe origins of the Mojito are a little mysterious and some stories go as far back as the 16th century. We’re unsure of it’s true lineage but I know for sure, that it is the perfect refreshing summer cocktail and is a crowd favourite no matter the occasion.";
                     answer += "\n\n* INGREDIENTS*";
                     answer += "\n - 60ml White Rum (2 oz)";
-                    answer += "\n - 90ml Fresh lime juice (3/4 oz)";
-                    answer += "\n - 15ml Sugar syrup (3/4 oz)";
+                    answer += "\n - 22.5ml Fresh lime juice (3/4 oz)";
+                    answer += "\n - 22.5ml Simple syrup (3/4 oz)";
                     answer += "\n - 60ml Soda water (2 oz)";
                     answer += "\n - 6-8 Mint leaves";
-                    answer += "\n - Don't strain and garnish with a spring of fresh mint";
+                    answer += "\n\n - Add all ingredients except soda and gently muddle the mint. Pour into a high ball glass without straining and garnish with a spring of fresh mint";
 
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("Daiquiri"))
+                {
+                    answer = "*--Daiquiri--*";
+                    answer += "\nThe Daiquiri would have to be one of the most iconic classics. It was first created in the 1890's and Bacardi was first call. Originally the drink was served in a tall glass packed with ice.";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 60ml White Rum (2 oz)";
+                    answer += "\n - 30ml Fresh lime juice (1 oz)";
+                    answer += "\n - 22.5ml Simple syrup (3/4 oz)";
+                    answer += "\n\n - Garnish with a lime wheel.";
+
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("Dark & Stormy"))
+                {
+                    answer = "*--Dark & Stormy--*";
+                    answer += "\nThe original trademarked version is held by the Gosling family. It calls for Gosling’s Bermudan rum but any dark rum to accompany a spicy ginger beer will work - just don’t substitute for ginger ale. Apparently many venues that utilise a different rum have had to resort to cleverly renaming the drink to Safe Harbour, in order to avoid litigation from the Gosling’s family.";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 60ml Dark Rum (2 oz)";
+                    answer += "\n - 90ml Ginger Beer (3 oz)";
+                    answer += "\n - Lime wedge";
+                    answer += "\n\n - Garnish with a lime wedge.";
+
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("Cuba Libre"))
+                {
+                    answer = "*--Cuba Libre--*";
+                    answer += "\nThe Cuba Libre is a simple, tasty cocktail steeped with history. The drink was created during the Spanish-American war and the words Cuba Libre translate to 'free Cuba'.";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 60ml White Rum (2 oz)";
+                    answer += "\n - Half a lime squeezed";
+                    answer += "\n - 120ml Cola (4 oz)";
+                    answer += "\n\n Squeeze half a lime into a high ball glass, add the rum, drop a lemon slice and finally top with cola.";
+
+                    await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
+                }
+                else if (message.Equals("Pina Colada"))
+                {
+                    answer = "*--Pina Colada--*";
+                    answer += "\nThe Pina Colada is the official cocktail of Puerto Rico and has been for over 35 years! It is also classified as an International Bartenders Association official cocktail and for good reason. Everyone loves a good pina colada especially in the summer months.";
+                    answer += "\n\n* INGREDIENTS*";
+                    answer += "\n - 45ml White Rum (2 oz)";
+                    answer += "\n - 90ml Coconat cream (3 oz)";
+                    answer += "\n - 180ml Pineapple juice (6 oz)";
+                    answer += "\n\n - Combine all ingredients, add some crushed ice and blend for 20-30 seconds.";
+                    answer += "\n - Garnish with a pineapple wedge.";
                     await botClient.SendTextMessageAsync(e.Message.Chat, answer, ParseMode.Markdown);
                 }
                 else if (message.Equals("Whiskey")) { }
                 else if (message.Equals("Mix")) { }
                 else if (message.Equals("Syrups")) { }
                 else if (message.Equals("Alcohol free")) { }
+                else if (message.Equals("Shots")) { }
+                else if (message.Equals("Go back"))
+                {
+                    var categories = new[] { "Gin", "Vodka", "Tequila", "Rum", "Whiskey", "Mix", "Syrups", "Alcohol free" };
+                    var buttons = categories.Select(category => new[] { new KeyboardButton(category) })
+                        .ToArray();
+                    var selections = new ReplyKeyboardMarkup(buttons);
 
+                    await botClient.SendTextMessageAsync(e.Message.Chat,
+                        "*Select a alcohol to see cocktails.*",
+                        ParseMode.Markdown,
+                        replyToMessageId: e.Message.MessageId,
+                        replyMarkup: selections);
+                }
 
             }
         }

@@ -9,7 +9,7 @@ namespace chastocaBot_Telegram
         private static SqlCommand sqlCommand;
         private static SqlConnection connection;
         private static SqlDataReader reader;
-        private static readonly string connecString = "Data Source=DESKTOP-MT1SCOE\\ARDA;Initial Catalog=chastocaBotTelegram;Integrated Security=True"; //   localhost\\SQLEXPRESS  --- DESKTOP-MT1SCOE\\ARDA
+        private static readonly string connecString = "Data Source=localhost\\SQLEXPRESS;Initial Catalog=chastocaBotTelegram;Integrated Security=True"; //   localhost\\SQLEXPRESS  --- DESKTOP-MT1SCOE\\ARDA
 
         internal static string AddCounter(string command, string userID)
         {

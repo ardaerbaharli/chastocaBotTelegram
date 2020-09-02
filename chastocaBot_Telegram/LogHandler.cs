@@ -9,7 +9,7 @@ namespace chastocaBot_Telegram
     {
         public static void Log(string message,string textFrom)
         {
-            string path = "E:\\chatLogs\\TelegramBot\\"+textFrom+ ".txt";
+            string path = "D:\\chatLogs\\TelegramBot\\"+textFrom+ ".txt";
             
             File.AppendAllText(path, LogToFile(message,textFrom));
             LogToConsole(message,textFrom);
