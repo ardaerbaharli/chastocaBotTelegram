@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace chastocaBot_Telegram
 {
     class LogHandler
     {
-        public static void Log(string message,string textFrom)
+        public static void Log(string message,string textFrom,string chatName)
         {
-            string path = "D:\\chatLogs\\TelegramBot\\"+textFrom+ ".txt";
+            string path = "D:\\chatLogs\\TelegramBot\\"+ chatName + ".txt";
             
             File.AppendAllText(path, LogToFile(message,textFrom));
             LogToConsole(message,textFrom);
