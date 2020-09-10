@@ -229,6 +229,42 @@ namespace chastocaBot_Telegram
                 return false;
 
         }
+        public static bool ChangeCommand(string command, string reply)
+        {
+            int isSuccessful;
+            if (DoesExistInCommands(command))
+            {
+                try
+                {                   
+                    connection = new SqlConnection
+                    {
+                        ConnectionString = connecString
+                    };
+                    sqlCommand = new SqlCommand
+                    {
+                        Connection = connection,
+
+                        CommandText = "UPDATE Commands SET answer='" + reply + "' WHERE command ='" + command + "'"
+                    };
+                    connection.Open();
+                    isSuccessful = sqlCommand.ExecuteNonQuery();
+                    connection.Close();
+                    if (isSuccessful == 0)
+                        return false;
+                    else
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.HelpLink);
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
         public static bool DoesExistInCommands(string command)
         {
             connection = new SqlConnection

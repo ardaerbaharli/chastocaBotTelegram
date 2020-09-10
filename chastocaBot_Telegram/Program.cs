@@ -4,7 +4,7 @@ namespace chastocaBot_Telegram
 {
     class Program
     {       
-        static void Main(string[] args)
+        private static void Main()
         {
             BotControl bc = new BotControl();
             bc.Connect();
