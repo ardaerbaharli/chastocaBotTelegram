@@ -5,33 +5,33 @@ namespace chastocaBot_Telegram
 {
     class LogHandler
     {
-        public static void Log(string message, string textFrom, string chatName)
+        public static void Log(Log log)
         {
-            if (chatName.Length < 1)
-                chatName = "NO_USERNAME";
+            if (log.LogName.Length < 1)
+                log.LogName= "NO_LOG_NAME";
 
-            string path = "D:\\chatLogs\\TelegramBot\\" + chatName + ".txt";
+            string path = "D:\\chatLogs\\TelegramBot\\" + log.LogName + ".txt";
 
-            File.AppendAllText(path, LogToFile(message, textFrom));
-            LogToConsole(message, textFrom);
+            File.AppendAllText(path, LogToFile(log));
+            LogToConsole(log);
         }
 
-        public static string LogToFile(string message, string textFrom)
+        public static string LogToFile(Log log)
         {
             string logMessage = String.Format("{0} >>>> {1} : {2} {3}  ",
                 DateTime.Now,
-                textFrom,
-                message,
+                log.Sender,
+                log.Message,
                 Environment.NewLine);
 
             return logMessage;
         }
-        public static void LogToConsole(string message, string textFrom)
+        public static void LogToConsole(Log log)
         {
             string logMessage = String.Format("{0} >>>> {1} : {2}  ",
                 DateTime.Now,
-                textFrom,
-                message);
+                log.Sender,
+                log.Message);
             Console.WriteLine(logMessage);
         }
     }

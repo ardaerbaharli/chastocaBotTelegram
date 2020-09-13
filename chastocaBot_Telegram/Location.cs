@@ -3,8 +3,8 @@
     class Location
     {
         public string Name { get; set; }
-        public string Latitude { get; set; }
-        public string Longitude { get; set; }
-
+        public float Latitude { get; set; }
+        public float Longitude { get; set; }
+        public string WhoAdded { get; set; }               
     }
 }

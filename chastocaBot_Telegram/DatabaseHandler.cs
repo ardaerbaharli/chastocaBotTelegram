@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Globalization;
 
 namespace chastocaBot_Telegram
 {
@@ -50,7 +51,8 @@ namespace chastocaBot_Telegram
             else // if counter exists
             {
                 int counter = Convert.ToInt32(FindCounterAnswer(command, username)) + 1;
-
+              //  Counter counter = new Counter();
+               // counter.Command = 
                 if (UpdateCounter(command, counter.ToString(), username))
                     return counter.ToString();
                 else
@@ -161,9 +163,9 @@ namespace chastocaBot_Telegram
         #endregion
 
         #region Commands
-        public static bool AddCommand(string command, string reply)
+        public static bool AddCommand(Command command)
         {
-            if (!DoesExistInCommands(command))
+            if (!DoesExistInCommands(command.Question))
             {
                 int isSuccessful;
                 try
@@ -175,7 +177,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "INSERT INTO Commands (command,answer) VALUES ('" + command + "','" + reply + "')"
+                        CommandText = "INSERT INTO Commands (question,whoCanAccess,reply,whoAdded) VALUES ('" + command.Question + "','" + command.WhoCanAccess + "','" + command.Reply + "','" + command.WhoAdded + "')"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -193,49 +195,47 @@ namespace chastocaBot_Telegram
             }
             else
                 return false;
-        }       
-        public static bool DeleteCommand(string command)
-        {
-            if (DoesExistInCommands(command))
-            {
-                int isSuccessful;
-                try
-                {
-                    connection = new SqlConnection
-                    {
-                        ConnectionString = connecString
-                    };
-                    sqlCommand = new SqlCommand
-                    {
-                        Connection = connection,
-                        CommandText = "DELETE FROM Commands WHERE command='" + command + "'"
-                    };
-                    connection.Open();
-                    isSuccessful = sqlCommand.ExecuteNonQuery();
-                    connection.Close();
-                    if (isSuccessful == 0)
-                        return false;
-                    else
-                        return true;
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.HelpLink);
-                    return false;
-                }
-            }
-            else
-                return false;
-
         }
-        public static bool ChangeCommand(string command, string reply)
+        public static bool DeleteCommand(string question)
+        {
+            if (DoesExistInCommands(question))
+            {
+                int isSuccessful;
+                try
+                {
+                    connection = new SqlConnection
+                    {
+                        ConnectionString = connecString
+                    };
+                    sqlCommand = new SqlCommand
+                    {
+                        Connection = connection,
+                        CommandText = "DELETE FROM Commands WHERE question ='" + question + "'"
+                    };
+                    connection.Open();
+                    isSuccessful = sqlCommand.ExecuteNonQuery();
+                    connection.Close();
+                    if (isSuccessful == 0)
+                        return false;
+                    else
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.HelpLink);
+                    return false;
+                }
+            }
+            else
+                return false;
+        }
+        public static bool UpdateCommand(Command command)
         {
             int isSuccessful;
-            if (DoesExistInCommands(command))
+            if (DoesExistInCommands(command.Question))
             {
                 try
-                {                   
+                {
                     connection = new SqlConnection
                     {
                         ConnectionString = connecString
@@ -243,8 +243,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-
-                        CommandText = "UPDATE Commands SET answer='" + reply + "' WHERE command ='" + command + "'"
+                        CommandText = "UPDATE Commands SET reply='" + command.Reply + "', whoCanAccess = '" + command.WhoCanAccess + "' WHERE question ='" + command.Question + "'" // hadi inş
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -265,14 +264,14 @@ namespace chastocaBot_Telegram
                 return false;
             }
         }
-        public static bool DoesExistInCommands(string command)
+        public static bool DoesExistInCommands(string question)
         {
             connection = new SqlConnection
             {
                 ConnectionString = connecString
             };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (command = @command)", connection);
-            checkCommand.Parameters.AddWithValue("@command", command);
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (question = @question)", connection);
+            checkCommand.Parameters.AddWithValue("@question", question);
             connection.Open();
             int commandExist = (int)checkCommand.ExecuteScalar();
             connection.Close();
@@ -281,8 +280,8 @@ namespace chastocaBot_Telegram
             else
                 return false;
 
-        }       
-        public static string GetReply(string command)
+        }
+        public static Command GetCommand(string question)
         {
 
             connection = new SqlConnection
@@ -293,24 +292,139 @@ namespace chastocaBot_Telegram
             sqlCommand = new SqlCommand
             {
                 Connection = connection,
-                CommandText = "SELECT * FROM Commands WHERE command='" + command + "'"
+                CommandText = "SELECT * FROM Commands WHERE question='" + question + "'"
             };
             reader = sqlCommand.ExecuteReader();
-            string answer = "";
+            Command command = new Command();
             while (reader.Read())
             {
-                answer = reader[1].ToString();
+                command.Question = question;
+                command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                command.Reply = reader[2].ToString().TrimEnd();
+
             }
             connection.Close();
-            return answer;
+            return command;
+        }
+        public static bool DeletesCommandsFrom(string username)
+        {
+            int isSuccessful;
+            try
+            {
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "DELETE FROM Commands WHERE whoAdded ='" + username + "'"
+                };
+                connection.Open();
+                isSuccessful = sqlCommand.ExecuteNonQuery();
+                connection.Close();
+                if (isSuccessful == 0)
+                    return false;
+                else
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.HelpLink);
+                return false;
+            }
+
+        }
+        public static int CountCommandsFrom(string username)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoAdded = @whoAdded)", connection);
+            checkCommand.Parameters.AddWithValue("@whoAdded", username);
+            connection.Open();
+            int count = (int)checkCommand.ExecuteScalar();
+            connection.Close();
+            return count;
+        }
+        public static List<Command> GetCommandsFrom(string username)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            connection.Open();
+            sqlCommand = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = "SELECT * FROM Commands WHERE whoAdded='" + username + "'"
+            };
+            reader = sqlCommand.ExecuteReader();
+
+            List<Command> commandList = new List<Command>();
+            
+
+            while (reader.Read())
+            {
+                Command command = new Command();
+                command.Question = reader[0].ToString().TrimEnd();
+                command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                command.Reply = reader[2].ToString().TrimEnd();
+                command.WhoAdded = username;
+                commandList.Add(command);
+            }
+            connection.Close();
+            return commandList;
+        }
+        public static int CountCommandsWhoCanAccess(string rank)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoCanAccess  = @whoCanAccess )", connection);
+            checkCommand.Parameters.AddWithValue("@whoCanAccess ", rank);
+            connection.Open();
+            int count = (int)checkCommand.ExecuteScalar();
+            connection.Close();
+            return count;
+        }
+        public static List<Command> GetCommandsWhoCanAccess(string rank)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            connection.Open();
+            sqlCommand = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = "SELECT * FROM Commands WHERE whoCanAccess ='" + rank + "'"
+            };
+            reader = sqlCommand.ExecuteReader();
+
+            List<Command> commandList = new List<Command>();
+
+            while (reader.Read())
+            {
+                Command command = new Command();
+                command.Question = reader[0].ToString().TrimEnd();
+                command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                command.Reply = reader[2].ToString().TrimEnd();
+                command.WhoAdded = reader[3].ToString().TrimEnd();
+                commandList.Add(command);
+            }
+            connection.Close();
+            return commandList;
         }
 
         #endregion
 
         #region Cocktails
-        public static bool AddCocktail(string cocktailName, string recipe, string alcoholcategory)
+        public static bool AddCocktail(Cocktail cocktail)
         {
-            if (!DoesExistInCocktails(cocktailName))
+            if (!DoesExistInCocktails(cocktail.Name))
             {
                 int isSuccessful;
                 try
@@ -322,7 +436,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "INSERT INTO Cocktails (cocktailName,recipe,type) VALUES ('" + cocktailName + "','" + recipe + "','" + alcoholcategory + "')"
+                        CommandText = "INSERT INTO Cocktails (cocktailName,recipe,type) VALUES ('" + cocktail.Name + "','" + cocktail.Recipe + "','" + cocktail.Type + "')"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -503,7 +617,7 @@ namespace chastocaBot_Telegram
             var answer = new List<string>();
             while (reader.Read())
             {
-                answer.Add(reader[0].ToString().TrimEnd());               
+                answer.Add(reader[0].ToString().TrimEnd());
             }
             connection.Close();
 
@@ -512,12 +626,12 @@ namespace chastocaBot_Telegram
         #endregion        
 
         #region Locations        
-        public static bool AddLocation(string name, double latitude, double longitude)
+        public static bool AddLocation(Location location)
         {
-            if (!DoesExistInLocations(name))
+            if (!DoesExistInLocations(location.Name))
             {
-                string lat = latitude.ToString("#.######", System.Globalization.CultureInfo.InvariantCulture);
-                string lon = longitude.ToString("#.######", System.Globalization.CultureInfo.InvariantCulture);
+                string lat = location.Latitude.ToString("#.######", System.Globalization.CultureInfo.InvariantCulture);
+                string lon = location.Longitude.ToString("#.######", System.Globalization.CultureInfo.InvariantCulture);
                 int isSuccessful;
                 try
                 {
@@ -528,7 +642,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "INSERT INTO Locations (name,latitude,longitude) VALUES ('" + name + "','" + lat+ "','" + lon + "')"
+                        CommandText = "INSERT INTO Locations (name,latitude,longitude,whoAdded) VALUES ('" + location.Name + "','" + lat + "','" + lon + "','" + location.WhoAdded + "')"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -593,16 +707,18 @@ namespace chastocaBot_Telegram
                 CommandText = "SELECT * FROM Locations WHERE name='" + name + "'"
             };
             reader = sqlCommand.ExecuteReader();
-            
-            
+
+
             Location location = new Location();
             while (reader.Read())
             {
-                //Location l = new Location();
+                CultureInfo numberFormat = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+                numberFormat.NumberFormat.CurrencyDecimalSeparator = ".";
                 location.Name = name;
-                location.Latitude = reader[1].ToString();
-                location.Longitude = reader[2].ToString();
-                
+                location.Latitude = float.Parse(reader[1].ToString().TrimEnd(), NumberStyles.Any, numberFormat); //reader[1].ToString();
+                location.Longitude = float.Parse(reader[2].ToString().TrimEnd(), NumberStyles.Any, numberFormat);
+                location.WhoAdded = reader[3].ToString().TrimEnd();
+
             }
             connection.Close();
             return location;
@@ -614,7 +730,7 @@ namespace chastocaBot_Telegram
                 ConnectionString = connecString
             };
             using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (name)='" + name + "'", connection);
-           // checkCommand.Parameters.AddWithValue("@name", name);
+            // checkCommand.Parameters.AddWithValue("@name", name);
             connection.Open();
             int commandExist = (int)checkCommand.ExecuteScalar();
             connection.Close();
@@ -623,7 +739,7 @@ namespace chastocaBot_Telegram
             else
                 return false;
         }
-        public static List<string> GetLocationNames()
+        public static List<string> GetLocationNamesFrom(string username)
         {
             connection = new SqlConnection
             {
@@ -633,11 +749,10 @@ namespace chastocaBot_Telegram
             sqlCommand = new SqlCommand
             {
                 Connection = connection,
-                CommandText = "SELECT * FROM Locations"
+                CommandText = "SELECT * FROM Locations WHERE whoAdded='" + username + "'"
             };
             reader = sqlCommand.ExecuteReader();
             var answer = new List<string>();
-
             while (reader.Read())
             {
                 answer.Add(reader[0].ToString().TrimEnd());
@@ -646,12 +761,23 @@ namespace chastocaBot_Telegram
 
             return answer;
         }
-
+        public static int CountLocationsFrom(string username)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (whoAdded = @whoAdded)", connection);
+            checkCommand.Parameters.AddWithValue("@whoAdded", username);
+            connection.Open();
+            int count = (int)checkCommand.ExecuteScalar();
+            connection.Close();
+            return count;
+        }
         #endregion
 
         #region Users
-
-        public static bool DoesExistInUsers(string username,string chatId)
+        public static bool DoesExistInUsers(string username, string chatId)
         {
             connection = new SqlConnection
             {
@@ -668,9 +794,9 @@ namespace chastocaBot_Telegram
             else
                 return false;
         }
-         public static bool AddUser(string username, string chatId)
+        public static bool AddUser(User newUser)
         {
-            if (!DoesExistInUsers(username,chatId))
+            if (!DoesExistInUsers(newUser.Username, newUser.ChatId))
             {
                 int isSuccessful;
                 try
@@ -682,7 +808,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "INSERT INTO Users (username,chatId) VALUES ('" + username + "','" + chatId + "')"
+                        CommandText = "INSERT INTO Users (username,chatId,rank) VALUES ('" + newUser.Username + "','" + newUser.ChatId + "','" + newUser.Rank + "')"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -701,6 +827,65 @@ namespace chastocaBot_Telegram
             else
                 return false;
         }
+        public static bool UpdateUser(User user)
+        {
+            int isSuccessful;
+            if (DoesExistInUsers(user.Username,user.ChatId))
+            {
+                try
+                {
+                    connection = new SqlConnection
+                    {
+                        ConnectionString = connecString
+                    };
+                    sqlCommand = new SqlCommand
+                    {
+                        Connection = connection,
+                        CommandText = "UPDATE Users SET rank='" + user.Rank + "' WHERE username ='" + user.Username+ "'"
+                    };
+                    connection.Open();
+                    isSuccessful = sqlCommand.ExecuteNonQuery();
+                    connection.Close();
+                    if (isSuccessful == 0)
+                        return false;
+                    else
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.HelpLink);
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+        public static User GetUser(string username)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            connection.Open();
+            sqlCommand = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = "SELECT * FROM Users WHERE username='" + username + "'"
+            };
+            reader = sqlCommand.ExecuteReader();
+
+            User user = new User();
+            while (reader.Read())
+            {
+                user.Username = username;
+                user.ChatId = reader[1].ToString();
+                user.Rank = reader[2].ToString();
+            }
+            connection.Close();
+            return user;
+        }
         internal static List<User> GetUsers()
         {
             connection = new SqlConnection
@@ -714,14 +899,15 @@ namespace chastocaBot_Telegram
                 CommandText = "SELECT * FROM Users"
             };
             reader = sqlCommand.ExecuteReader();
-           
+
             List<User> Users = new List<User>();
             while (reader.Read())
             {
                 User user = new User
                 {
                     Username = reader[0].ToString().TrimEnd(),
-                    ChatId = reader[1].ToString().TrimEnd()
+                    ChatId = reader[1].ToString().TrimEnd(),
+                    Rank = reader[2].ToString().TrimEnd()
                 };
                 Users.Add(user);
             }
@@ -729,6 +915,7 @@ namespace chastocaBot_Telegram
 
             return Users;
         }
+
         #endregion
     }
 }
