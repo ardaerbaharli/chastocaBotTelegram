@@ -3,7 +3,15 @@ It is a Telegram bot that I built for mostly me and my friends.
 
 ## !Features
 
-- !help \>> Shows all the commands in the Commands table.
+## There are 4 different ranks: 
+ - **Folk:**- Starting rank.
+ - **Berserker:** Premium user rank, has access to !commands and !berserkercommands.
+ - **Gatekeeper:** Moderator, has access to !admincommands.
+ - **King:** @ardaerbaharli
+ 
+- !commands
+- !berserkercommands
+- !admincommands
 - !cocktails >> Shows all the registered cocktail types and when you pick one of them, it shows all the cocktails with the specified type.
   
   #### Fall Guys Commands (To user !win and !wincount you should have a username on Telegram.)
@@ -11,15 +19,49 @@ It is a Telegram bot that I built for mostly me and my friends.
 - !leaderboard >> Shows top 5 player with the highest score.
 - !wincount >> Shows how many wins you have.
 
+### Berserker commands
+## There are some commands that only berserkers can use. By getting the Berserker rank:
+
+**!addcommand**>>> You can add 5 personal custom commands that only you will see the reply of that command.
+  >> Use: !addcommand commandName reply
+    >> From now on when you write commandName, bot will reply with you defined reply. (Command name have to be 1 word and reply has 800 character limit.)
+
+**!deletecommand **>>> 
+ >> Use: !deletecommand commandName  
+   
+**!updatecommand** >>>
+ >> Use: !updatecommand commandName newReply
+
+**!mycommands** >>> Lists all of your custom commands you added.
+
+**!addlocation** >>> You can add 5 personal locations that only you will see.
+ >> Use: !addlocation locationName latitude longitude
+ >> You can find latitude and longitude of your location:
+ > Google Maps and Yandex Maps by:
+  - Right click or long press on the map and in the shown menu click "What is Here?"
+ > Apple Maps
+   - Long press on the map and scroll down.
+
+**!deletelocation**
+>> Use: !deletelocation locationName
+
+**!mylocations** >>> Lists all of your custom locations you added.
+
   #### Admin only comamnds
-  
-- loc >> Shows registered locations with reply markup and when you click one of the buttons, it will send you the location of that venue. 
-- !announce <announce> >> Sends *announce* message to every user.
-- !addlocation <name> <latitude> <longitude> >> Adds the specified coordinates to database with the given name.
-- !deletelocation <name> >> Removes the record given name from database.
-- !addcommand <command> <reply> >> Adds the command to the database. (!addcommand !github github.com/ardaerbaharli , and whenever someone writes !github to the bot, it will reply with github link.)
-- !deletecommand <command> >> Deletes the command from database.
-  
+- !addlocation
+- !deletelocation
+- !addcommand
+- !deletecommand
+- !updatecommand
+- !deletecommandsfrom <username>
+- !giverank <username>
+- !ranks
+- !listusers 
+- !announce <rankToAnnounce> <announce> 
+(Folk = All,Berserker = Except folk, Gatekeeper = Except berserker and folk)
+- !mylocations
+- !mycommands
+
 - !addcocktail <cocktailName> <type> <recipe> >> Adds the cocktail to the database.
   - cocktailName: Name of the cocktail.
   - Type: Vodka, Gin, Alcohol-free, syrup etc.  
@@ -38,7 +80,9 @@ It is a Telegram bot that I built for mostly me and my friends.
         - cocktailType >> nvarchar(100)
     - Commands
         - command >> nvarchar(200)
+        - whoCanAccess >> nvarchar(100)
         - answer >> nvarchar(200)
+        - whoAdded >> nvarchar(100)
     - Counters
         - command >> nvarchar(100)
         - counter >> int
@@ -47,6 +91,8 @@ It is a Telegram bot that I built for mostly me and my friends.
         - name >> nvarchar(100)
         - latitude >> float
         - longitude >> float
+        - whoAdded >> nvarchar(100)
     - Users
         - username >> nvarchar(100)
         - chatId >> nvarchar(20)
+        - rank >> nvarchar(50)
