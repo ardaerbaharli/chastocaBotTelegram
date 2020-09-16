@@ -10,7 +10,7 @@ namespace chastocaBot_Telegram
         private static SqlCommand sqlCommand;
         private static SqlConnection connection;
         private static SqlDataReader reader;
-        private static readonly string connecString = "Data Source=localhost\\SQLEXPRESS;Initial Catalog=chastocaBotTelegram;Integrated Security=True"; //   localhost\\SQLEXPRESS  --- DESKTOP-MT1SCOE\\ARDA
+        private static readonly string connecString = "Data Source=localhost\\SQLEXPRESS;Initial Catalog=chastocaBotTelegram;Integrated Security=True"; // localhost\\SQLEXPRESS  --- DESKTOP-MT1SCOE\\ARDA
 
         #region Counters
 
@@ -51,8 +51,8 @@ namespace chastocaBot_Telegram
             else // if counter exists
             {
                 int counter = Convert.ToInt32(FindCounterAnswer(command, username)) + 1;
-              //  Counter counter = new Counter();
-               // counter.Command = 
+                //  Counter counter = new Counter();
+                // counter.Command = 
                 if (UpdateCounter(command, counter.ToString(), username))
                     return counter.ToString();
                 else
@@ -73,17 +73,22 @@ namespace chastocaBot_Telegram
                 CommandText = "SELECT TOP 5 * FROM Counters WHERE command='" + command + "' ORDER BY counter DESC"
             };
             reader = sqlCommand.ExecuteReader();
-            string[,] answer = new string[5, 3];
-            int i = 0, j = 0;
+            string[,] leaderboard = new string[5, 3];
+            int row = 0, col = 0;
             while (reader.Read())
             {
-                answer[i, j] = reader[2].ToString().TrimEnd();
-                answer[i, j + 1] = reader[1].ToString().TrimEnd();
-                i++;
+                string username = reader[2].ToString().TrimEnd();
+                string score = reader[1].ToString().TrimEnd();
+                if (BotControl.CanAccess(GetUser(username), "Berserker"))
+                {
+                    leaderboard[row, col] = username;
+                    leaderboard[row, col + 1] = score;
+                    row++;
+                }
             }
             connection.Close();
 
-            return answer;
+            return leaderboard;
         }
         public static bool UpdateCounter(string command, string counter, string username)
         {
@@ -363,7 +368,7 @@ namespace chastocaBot_Telegram
             reader = sqlCommand.ExecuteReader();
 
             List<Command> commandList = new List<Command>();
-            
+
 
             while (reader.Read())
             {
@@ -830,7 +835,7 @@ namespace chastocaBot_Telegram
         public static bool UpdateUser(User user)
         {
             int isSuccessful;
-            if (DoesExistInUsers(user.Username,user.ChatId))
+            if (DoesExistInUsers(user.Username, user.ChatId))
             {
                 try
                 {
@@ -841,7 +846,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "UPDATE Users SET rank='" + user.Rank + "' WHERE username ='" + user.Username+ "'"
+                        CommandText = "UPDATE Users SET rank='" + user.Rank + "' WHERE username ='" + user.Username + "'"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();

@@ -7,7 +7,7 @@ namespace chastocaBot_Telegram
     {
         public static void Log(Log log)
         {
-            if (log.LogName.Length < 1)
+            if (log.LogName == null)
                 log.LogName= "NO_LOG_NAME";
 
             string path = "D:\\chatLogs\\TelegramBot\\" + log.LogName + ".txt";

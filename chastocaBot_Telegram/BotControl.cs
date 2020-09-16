@@ -81,7 +81,7 @@ namespace chastocaBot_Telegram
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                 }
                             }
-                            else if (message.Equals("!mylocations") && CanAccess(currentUser, "Berserker"))
+                            else if ((message.Equals("!mylocations") || message.Equals("!mylocs")) && CanAccess(currentUser, "Berserker"))
                             {
                                 var locations = DatabaseHandler.GetLocationNamesFrom(username);
                                 var buttons = locations.Select(location => new[] { new KeyboardButton(location) })
@@ -94,7 +94,7 @@ namespace chastocaBot_Telegram
                                     replyToMessageId: e.Message.MessageId,
                                     replyMarkup: selections);
                             }
-                            else if (fragmentedMessage[0].Equals("!addlocation") && CanAccess(currentUser, "Berserker"))  //!addlocation arda lati longi
+                            else if ((fragmentedMessage[0].Equals("!addlocation") || message.Equals("!aloc")) && CanAccess(currentUser, "Berserker"))  //!addlocation arda lati longi
                             {
                                 if (fragmentedMessage.Length == 4)
                                 {
@@ -143,7 +143,7 @@ namespace chastocaBot_Telegram
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer2, ParseMode.Markdown);
                                 }
                             }
-                            else if (fragmentedMessage[0].Equals("!deletelocation") && CanAccess(currentUser, "Berserker"))
+                            else if ((fragmentedMessage[0].Equals("!deletelocation") || message.Equals("!dloc")) && CanAccess(currentUser, "Berserker"))
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
@@ -169,7 +169,7 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!deletelocation <name>", ParseMode.Markdown);
                             }
-                            else if (message.Equals("!mycommands") && CanAccess(currentUser, "Berserker"))
+                            else if ((message.Equals("!mycommands") || message.Equals("!mcoms")) && CanAccess(currentUser, "Berserker"))
                             {
                                 botAnswer = "You have " + DatabaseHandler.CountCommandsFrom(username) + " commands:";
                                 List<Command> userCommands = DatabaseHandler.GetCommandsFrom(username);
@@ -180,7 +180,7 @@ namespace chastocaBot_Telegram
                                 }
                                 await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!addcommand") && CanAccess(currentUser, "Berserker"))
+                            else if ((fragmentedMessage[0].Equals("!addcommand") || message.Equals("!acom")) && CanAccess(currentUser, "Berserker"))
                             {
 
                                 if (IsAdmin(currentUser))
@@ -230,7 +230,7 @@ namespace chastocaBot_Telegram
                                         await botClient.SendTextMessageAsync(e.Message.Chat, "!addcommand <command> <reply>", ParseMode.Markdown);
                                 }
                             }
-                            else if (fragmentedMessage[0].Equals("!deletecommand") && CanAccess(currentUser, "Berserker"))
+                            else if ((fragmentedMessage[0].Equals("!deletecommand") || message.Equals("!dcom")) && CanAccess(currentUser, "Berserker"))
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
@@ -255,16 +255,17 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecommand <command>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!updatecommand") && CanAccess(currentUser, "Berserker"))
+                            else if ((fragmentedMessage[0].Equals("!updatecommand") || message.Equals("!ucom")) && CanAccess(currentUser, "Berserker"))
                             {
                                 if (fragmentedMessage.Length > 2)
                                 {
                                     Command command = new Command();
                                     command.Question = fragmentedMessage[1];
-                                    command.WhoCanAccess = fragmentedMessage[2];
-                                    int startOffset = command.Question.Length + command.WhoCanAccess.Length + fragmentedMessage[0].Length + 3; //3 for spaces
-                                    command.Reply = message[startOffset..message.Length].Trim();
                                     Command oldCommand = DatabaseHandler.GetCommand(command.Question);
+                                    command.WhoCanAccess = oldCommand.WhoCanAccess;
+                                    int startOffset = command.Question.Length + fragmentedMessage[0].Length + 2; //2 for spaces
+                                    command.Reply = message[startOffset..message.Length].Trim();
+
                                     if (oldCommand.WhoAdded == currentUser.Username || IsAdmin(currentUser))
                                     {
                                         bool isSuccessful = DatabaseHandler.UpdateCommand(command);
@@ -275,10 +276,9 @@ namespace chastocaBot_Telegram
                                         await botClient.SendTextMessageAsync(e.Message.Chat, "You don't have permission to change this command.", ParseMode.Markdown);
                                 }
                                 else
-                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!updatecommand <command> <whoCanAccess> <newReply>", ParseMode.Markdown);
-
+                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!updatecommand <command> <newReply>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!deletecommandsfrom") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((fragmentedMessage[0].Equals("!deletecommandsfrom") || message.Equals("!dcf")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
@@ -290,17 +290,17 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecommandsfrom <username>", ParseMode.Markdown);
                             }
-                            else if (message.Equals("!commands") && CanAccess(currentUser, startingRank))
+                            else if ((message.Equals("!commands") || message.Equals("!help") || message.Equals("!c")) && CanAccess(currentUser, startingRank))
                             {
                                 botAnswer = Commands(startingRank);
                                 await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                             }
-                            else if (message.Equals("!admincommands") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((message.Equals("!admincommands") || message.Equals("!admincs")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 botAnswer = Commands("Gatekeeper");
                                 await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!addcocktail") && CanAccess(currentUser, "Gatekeeper")) //!addcocktail name type recipe
+                            else if ((fragmentedMessage[0].Equals("!addcocktail") || message.Equals("!acocktails")) && CanAccess(currentUser, "Gatekeeper")) //!addcocktail name type recipe
                             {
                                 if (fragmentedMessage.Length > 3)
                                 {
@@ -318,7 +318,7 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!addcocktail <cocktailName> <cocktailtype> <recipe>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!deletecocktail") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((fragmentedMessage[0].Equals("!deletecocktail") || message.Equals("!dcocktails")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
@@ -330,15 +330,17 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecocktail <cocktailName>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!requestcocktail") && CanAccess(currentUser, startingRank))
+                            else if ((fragmentedMessage[0].Equals("!requestcocktail") || message.Equals("!rqcocktail")) && CanAccess(currentUser, startingRank))
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
                                     string cocktailName = fragmentedMessage[1];
-                                    Log cocktailLog = new Log();
-                                    log.LogName = "COCKTAIL_REQUESTS";
-                                    log.Message = cocktailName;
-                                    log.Sender = username;
+                                    Log cocktailLog = new Log
+                                    {
+                                        LogName = "COCKTAIL REQUESTS",
+                                        Message = cocktailName,
+                                        Sender = username
+                                    };
                                     LogHandler.Log(cocktailLog);
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "We will add the requested cocktail as soon as possible.", ParseMode.Markdown);
                                     announce = string.Format("{0} requested {1} named cocktail to be added to the cocktails.", username, cocktailName);
@@ -347,7 +349,7 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!requestcocktal <cocktailName>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!giverank") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((fragmentedMessage[0].Equals("!giverank") || message.Equals("!gr")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 if (fragmentedMessage.Length == 3)
                                 {
@@ -364,7 +366,7 @@ namespace chastocaBot_Telegram
                                 else
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!giverank <username> <rank>", ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!listusers") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((message.Equals("!listusers") || message.Equals("!lu")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 List<User> Users = DatabaseHandler.GetUsers();
                                 botAnswer = "*--Username--*      *--Rank--*";
@@ -372,20 +374,20 @@ namespace chastocaBot_Telegram
                                     botAnswer += string.Format("\n{0}     {1}", user.Username, user.Rank);
                                 await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                             }
-                            else if (fragmentedMessage[0].Equals("!announce") && CanAccess(currentUser, "Gatekeeper"))
+                            else if ((fragmentedMessage[0].Equals("!announce") || message.Equals("!a")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 if (fragmentedMessage.Length > 2)
                                 {
-                                    string ranksToAnnounce = fragmentedMessage[1];
+                                    string toWho = fragmentedMessage[1];
                                     int startOffset = fragmentedMessage[0].Length + fragmentedMessage[1].Length + 1;
                                     announce = message[startOffset..message.Length].Trim();
-                                    bool isSuccessful = await Announce(announce, ranksToAnnounce);
+                                    bool isSuccessful = await Announce(announce, toWho);
                                     botAnswer = "Announce successfull: " + isSuccessful;
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                 }
                                 else
                                 {
-                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!announce <ranksToAnnounce> <announce> \n(Folk = All,Berserker = Except folk, Gatekeeper = Except berserker and folk)", ParseMode.Markdown);
+                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!announce <toWho:username|ranks> <announce> \n(Folk = All,Berserker = Except folk, Gatekeeper = Except berserker and folk)", ParseMode.Markdown);
                                 }
                             }
                             else if (message.Equals("!win") && CanAccess(currentUser, startingRank))
@@ -510,37 +512,52 @@ namespace chastocaBot_Telegram
                 }
             }
         }
-        private static async Task<bool> Announce(string announce, string ranksToAnnounce)
+        private static async Task<bool> Announce(string announce, string toWho)
         {
             try
             {
-                List<User> Users = DatabaseHandler.GetUsers();
-                switch (ranksToAnnounce)
+                bool isDefinedInRanks = Enum.IsDefined(typeof(Ranks), toWho);
+                if (isDefinedInRanks)
                 {
-                    case "Folk":
-                        foreach (var user in Users)
-                        {
-                            await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
-                        }
-                        break;
-                    case "Berserker":
-                        foreach (var user in Users)
-                        {
-                            if (user.Rank != "Folk")
+                    List<User> Users = DatabaseHandler.GetUsers();
+                    switch (toWho)
+                    {
+                        case "Folk":
+                            foreach (var user in Users)
+                            {
                                 await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
-                        }
-                        break;
-                    case "Gatekeeper":
-                        foreach (var user in Users)
-                        {
-                            if (user.Rank.Equals("Gatekeeper") || user.Rank.Equals("King"))
-                                await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
-                        }
-                        break;
-                    default:
-                        break;
+                            }
+                            break;
+                        case "Berserker":
+                            foreach (var user in Users)
+                            {
+                                if (user.Rank != "Folk")
+                                    await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
+                            }
+                            break;
+                        case "Gatekeeper":
+                            foreach (var user in Users)
+                            {
+                                if (user.Rank.Equals("Gatekeeper") || user.Rank.Equals("King"))
+                                    await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
+                            }
+                            break;
+                        case "King":
+                            foreach (var user in Users)
+                            {
+                                if (user.Rank.Equals("King"))
+                                    await botClient.SendTextMessageAsync(user.ChatId, announce, ParseMode.Markdown);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                 }
-
+                else
+                {
+                    string chatId = DatabaseHandler.GetUser(toWho).ChatId;
+                    await botClient.SendTextMessageAsync(chatId, announce, ParseMode.Markdown);
+                }
                 return true;
             }
             catch (Exception ex)
@@ -549,7 +566,7 @@ namespace chastocaBot_Telegram
                 return false;
             }
         }
-        private static bool CanAccess(User currentUser, string whoCanAccess)
+        public static bool CanAccess(User currentUser, string whoCanAccess)
         {
             bool canAccess = false;
             bool isDefinedInRanksUserRank = Enum.IsDefined(typeof(Ranks), currentUser.Rank);
