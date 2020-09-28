@@ -6,6 +6,7 @@ namespace chastocaBot_Telegram
     {       
         private static void Main()
         {
+            Console.Title = "chastocaBotTelegram";
             BotControl bc = new BotControl();
             bc.Connect();
            

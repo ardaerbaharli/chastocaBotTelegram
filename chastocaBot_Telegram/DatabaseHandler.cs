@@ -13,7 +13,6 @@ namespace chastocaBot_Telegram
         private static readonly string connecString = "Data Source=localhost\\SQLEXPRESS;Initial Catalog=chastocaBotTelegram;Integrated Security=True"; // localhost\\SQLEXPRESS  --- DESKTOP-MT1SCOE\\ARDA
 
         #region Counters
-
         internal static string AddCounter(string command, string username)
         {
             // is counter command exist
@@ -388,8 +387,8 @@ namespace chastocaBot_Telegram
             {
                 ConnectionString = connecString
             };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoCanAccess  = @whoCanAccess )", connection);
-            checkCommand.Parameters.AddWithValue("@whoCanAccess ", rank);
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoCanAccess = @whoCanAccess)", connection);
+            checkCommand.Parameters.AddWithValue("@whoCanAccess", rank);
             connection.Open();
             int count = (int)checkCommand.ExecuteScalar();
             connection.Close();
@@ -413,11 +412,13 @@ namespace chastocaBot_Telegram
 
             while (reader.Read())
             {
-                Command command = new Command();
-                command.Question = reader[0].ToString().TrimEnd();
-                command.WhoCanAccess = reader[1].ToString().TrimEnd();
-                command.Reply = reader[2].ToString().TrimEnd();
-                command.WhoAdded = reader[3].ToString().TrimEnd();
+                Command command = new Command
+                {
+                    Question = reader[0].ToString().TrimEnd(),
+                    WhoCanAccess = reader[1].ToString().TrimEnd(),
+                    Reply = reader[2].ToString().TrimEnd(),
+                    WhoAdded = reader[3].ToString().TrimEnd()
+                };
                 commandList.Add(command);
             }
             connection.Close();
@@ -531,7 +532,7 @@ namespace chastocaBot_Telegram
             connection.Close();
             return answer;
         }
-        internal static List<string> GetCocktailNames(string type)
+        public static List<string> GetCocktailNames(string type)
         {
             connection = new SqlConnection
             {
@@ -799,6 +800,7 @@ namespace chastocaBot_Telegram
             else
                 return false;
         }
+
         public static bool AddUser(User newUser)
         {
             if (!DoesExistInUsers(newUser.Username, newUser.ChatId))
@@ -919,6 +921,175 @@ namespace chastocaBot_Telegram
             connection.Close();
 
             return Users;
+        }
+
+        #endregion
+
+        #region Reminders
+        public static bool AddReminder(Reminder reminder)
+        {
+            if (!DoesExistInReminders(reminder))
+            {
+                try
+                {
+                    connection = new SqlConnection
+                    {
+                        ConnectionString = connecString
+                    };
+
+                    String query = "INSERT INTO Reminders (time, text, whoAdded) VALUES (@time, @text, @whoAdded)";
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@time", reminder.Date);
+                        command.Parameters.AddWithValue("@text", reminder.Text);
+                        command.Parameters.AddWithValue("@whoAdded", reminder.WhoAdded);
+
+                        connection.Open();
+                        int result = command.ExecuteNonQuery();
+                        connection.Close();
+                        // Check Error
+                        if (result < 0)
+                            return false;
+                        return true;
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.HelpLink);
+                    return false;
+                }
+            }
+            else
+                return false;
+        }
+        public static bool DeleteReminder(Reminder reminder)
+        {
+            if (DoesExistInReminders(reminder))
+            {
+                try
+                {
+                    connection = new SqlConnection
+                    {
+                        ConnectionString = connecString
+                    };
+                    sqlCommand = new SqlCommand
+                    {
+                        Connection = connection,
+                        CommandText = "DELETE FROM Reminders WHERE text='" + reminder.Text + "'AND whoAdded='" + reminder.WhoAdded + "'"
+                    };
+                    connection.Open();
+                    int isSuccessful = sqlCommand.ExecuteNonQuery();
+                    connection.Close();
+                    if (isSuccessful == 0)
+                        return false;
+                    else
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.HelpLink);
+                    return false;
+                }
+            }
+            else
+                return false;
+        }
+        public static List<Reminder> GetRemindersFrom(string whoAdded)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            connection.Open();
+            sqlCommand = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = "SELECT * FROM Reminders WHERE whoAdded='" + whoAdded + "'"
+            };
+            reader = sqlCommand.ExecuteReader();
+
+            List<Reminder> reminderList = new List<Reminder>();
+
+
+            while (reader.Read())
+            {
+                Reminder reminder = new Reminder
+                {
+                    Text = reader[0].ToString().TrimEnd(),
+                    Date = DateTime.Parse(reader[1].ToString().TrimEnd()),
+                    WhoAdded = reader[2].ToString().TrimEnd()
+                };
+                reminderList.Add(reminder);
+            }
+            connection.Close();
+            return reminderList;
+        }
+        public static bool DoesExistInReminders(Reminder reminder)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (time = @time) AND (text = @text) AND (whoAdded = @whoAdded) ", connection);
+            checkCommand.Parameters.AddWithValue("@time", reminder.Date);
+            checkCommand.Parameters.AddWithValue("@text", reminder.Text);
+            checkCommand.Parameters.AddWithValue("@whoAdded", reminder.WhoAdded);
+            connection.Open();
+            int commandExist = (int)checkCommand.ExecuteScalar();
+            connection.Close();
+            if (commandExist > 0)
+                return true;
+            else
+                return false;
+        }
+        public static Reminder GetSoonestReminder()
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            connection.Open();
+            sqlCommand = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = "SELECT * FROM Reminders"
+            };
+            reader = sqlCommand.ExecuteReader();
+
+            Reminder soonestReminder = new Reminder
+            {
+                Date = new DateTime(2025, 9, 19)
+            };
+
+            while (reader.Read())
+            {
+                Reminder reminder = new Reminder
+                {
+                    Date = DateTime.Parse(reader[0].ToString().TrimEnd()),
+                    Text = reader[1].ToString().TrimEnd(),
+                    WhoAdded = reader[2].ToString().TrimEnd()
+                };
+
+                if (DateTime.Compare(reminder.Date, soonestReminder.Date) < 0)
+                    soonestReminder = reminder;
+            }
+            connection.Close();
+
+            return soonestReminder;
+        }
+        public static int CountRemindersFrom(string username)
+        {
+            connection = new SqlConnection
+            {
+                ConnectionString = connecString
+            };
+            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (whoAdded = @whoAdded)", connection);
+            checkCommand.Parameters.AddWithValue("@whoAdded", username);
+            connection.Open();
+            int count = (int)checkCommand.ExecuteScalar();
+            connection.Close();
+            return count;
         }
 
         #endregion

@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
@@ -16,6 +18,7 @@ namespace chastocaBot_Telegram
     {
         private static readonly string botToken = "1280937266:AAHK0ETudaO0yPXttoEAiCoLn6Ypgc0dyZg";
         static ITelegramBotClient botClient;
+        private static Reminder soonestReminder;
         private enum Ranks { Folk = 1, Berserker, Gatekeeper, King }
         internal void Connect()
         {
@@ -23,9 +26,11 @@ namespace chastocaBot_Telegram
             var bot = botClient.GetMeAsync().Result;
             Console.WriteLine(bot.Username + " is online!");
 
+            soonestReminder = DatabaseHandler.GetSoonestReminder();
+
             botClient.OnMessage += Bot_OnMessage;
             botClient.StartReceiving();
-
+            Timers();
         }
 
         static async void Bot_OnMessage(object sender, MessageEventArgs e)
@@ -390,6 +395,25 @@ namespace chastocaBot_Telegram
                                     await botClient.SendTextMessageAsync(e.Message.Chat, "!announce <toWho:username|ranks> <announce> \n(Folk = All,Berserker = Except folk, Gatekeeper = Except berserker and folk)", ParseMode.Markdown);
                                 }
                             }
+                            else if ((fragmentedMessage[0].Equals("!brute") || message.Equals("!b")) && CanAccess(currentUser, "Gatekeeper"))
+                            {
+                                if (fragmentedMessage.Length > 2)
+                                {
+                                    string toWho = fragmentedMessage[1];
+                                    int howMany = Int32.Parse(fragmentedMessage[2]);
+                                    int startOffset = fragmentedMessage[2].Length +fragmentedMessage[0].Length + fragmentedMessage[1].Length + 3;
+                                    announce = string.Format("{0} spamming you {1} times.", username, howMany);
+                                    await Announce(announce, toWho);
+                                    announce = message[startOffset..message.Length].Trim();
+                                    bool isSuccessful = await BruteAnnounce(announce, toWho,howMany);
+                                    botAnswer = "Announce successfull: " + isSuccessful;
+                                    await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
+                                }
+                                else
+                                {
+                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!brute <toWho> <howMany> <message>", ParseMode.Markdown);
+                                }
+                            }
                             else if (message.Equals("!win") && CanAccess(currentUser, startingRank))
                             {
                                 string counter = DatabaseHandler.AddCounter("!win", username);
@@ -428,6 +452,40 @@ namespace chastocaBot_Telegram
                                     ParseMode.Markdown,
                                     replyToMessageId: e.Message.MessageId,
                                     replyMarkup: selections);
+                            }
+                            else if (fragmentedMessage[0].Equals("!notifyme") && CanAccess(currentUser, "Berserker"))
+                            {
+                                if (IsAdmin(currentUser) || DatabaseHandler.CountRemindersFrom(username) < 6)
+                                {
+                                    if (fragmentedMessage.Length > 3)
+                                    {
+                                        Reminder reminder = new Reminder();
+                                        reminder.WhoAdded = username;
+                                        var y = DateTime.Now.Year;
+                                        var m = Int32.Parse(fragmentedMessage[1].Substring(3, 2));
+                                        var d = Int32.Parse(fragmentedMessage[1].Substring(0, 2));
+                                        var h = Int32.Parse(fragmentedMessage[2]);
+                                        reminder.Date = new DateTime(y, m, d, h, 0, 0);
+
+
+                                        int startOffset = fragmentedMessage[1].Length + fragmentedMessage[0].Length + fragmentedMessage[2].Length + 3; // 3 for spaces
+                                        reminder.Text = message[startOffset..message.Length].Trim();
+
+                                        if (DateTime.Compare(reminder.Date, DateTime.Now) > 0)
+                                        {
+                                            bool isSuccessful = DatabaseHandler.AddReminder(reminder);
+                                            botAnswer = "Reminder added: " + isSuccessful;
+
+                                            soonestReminder = DatabaseHandler.GetSoonestReminder();
+                                        }
+                                        else
+                                            botAnswer = "You can't set a reminder earlier than now.";
+                                    }
+                                    else
+                                        botAnswer = "!notifyme <DD.MM> <HH>  <text>";
+
+                                    await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
+                                }
                             }
                             else if (message.Equals("Go Back"))
                             {
@@ -512,6 +570,21 @@ namespace chastocaBot_Telegram
                 }
             }
         }
+        public void Timers()
+        {
+            Timer link = new Timer(Reminder, null, 0, 1000 * 60 * 59);
+        }
+        public async void Reminder(object state)
+        {
+            if (DateTime.Now.Month == soonestReminder.Date.Month && soonestReminder.Date.Year == soonestReminder.Date.Year && DateTime.Now.Day == soonestReminder.Date.Day && DateTime.Now.Hour == soonestReminder.Date.Hour)
+            {
+                DatabaseHandler.DeleteReminder(soonestReminder);
+                string announce = string.Format("{0} dated reminder: {1}", soonestReminder.Date, soonestReminder.Text);
+                await Announce(announce, soonestReminder.WhoAdded);
+                soonestReminder = DatabaseHandler.GetSoonestReminder();
+                Timers();
+            }
+        }
         private static async Task<bool> Announce(string announce, string toWho)
         {
             try
@@ -558,6 +631,24 @@ namespace chastocaBot_Telegram
                     string chatId = DatabaseHandler.GetUser(toWho).ChatId;
                     await botClient.SendTextMessageAsync(chatId, announce, ParseMode.Markdown);
                 }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.StackTrace);
+                return false;
+            }
+        }
+        private static async Task<bool> BruteAnnounce(string announce, string toWho,int howMany)
+        {
+            try
+            {
+                string chatId = DatabaseHandler.GetUser(toWho).ChatId;
+                for (int i = 0; i < howMany; i++)
+                {
+                    await botClient.SendTextMessageAsync(chatId, announce, ParseMode.Markdown);
+                }
+
                 return true;
             }
             catch (Exception ex)
