@@ -34,5 +34,14 @@ namespace chastocaBot_Telegram
                 log.Message);
             Console.WriteLine(logMessage);
         }
+
+        public static void ReportCrash(Exception ex)
+        {
+            Log crashReport = new Log();
+            crashReport.LogName = "CrashReports";
+            crashReport.Sender = " ";
+            crashReport.Message = string.Format("Exception message: {0}\nStack trace:\n{1}", ex.Message, ex.StackTrace);
+            Log(crashReport);
+        }
     }
 }
