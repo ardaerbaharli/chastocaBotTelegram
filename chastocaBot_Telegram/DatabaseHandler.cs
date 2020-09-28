@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Globalization;
+using System.Linq;
 
 namespace chastocaBot_Telegram
 {
@@ -43,9 +44,11 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return "0";
                 }
+
             }
             else // if counter exists
             {
@@ -57,37 +60,47 @@ namespace chastocaBot_Telegram
                 else
                     return "0";
             }
-
         }
         internal static string[,] GetLeaderboard(string command)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT TOP 5 * FROM Counters WHERE command='" + command + "' ORDER BY counter DESC"
-            };
-            reader = sqlCommand.ExecuteReader();
-            string[,] leaderboard = new string[5, 3];
-            int row = 0, col = 0;
-            while (reader.Read())
-            {
-                string username = reader[2].ToString().TrimEnd();
-                string score = reader[1].ToString().TrimEnd();
-                if (BotControl.CanAccess(GetUser(username), "Berserker"))
+                connection = new SqlConnection
                 {
-                    leaderboard[row, col] = username;
-                    leaderboard[row, col + 1] = score;
-                    row++;
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT TOP 5 * FROM Counters WHERE command='" + command + "' ORDER BY counter DESC"
+                };
+                reader = sqlCommand.ExecuteReader();
+                string[,] leaderboard = new string[5, 3];
+                int row = 0, col = 0;
+                while (reader.Read())
+                {
+                    string username = reader[2].ToString().TrimEnd();
+                    string score = reader[1].ToString().TrimEnd();
+                    if (BotControl.CanAccess(GetUser(username), "Berserker"))
+                    {
+                        leaderboard[row, col] = username;
+                        leaderboard[row, col + 1] = score;
+                        row++;
+                    }
                 }
-            }
-            connection.Close();
+                connection.Close();
 
-            return leaderboard;
+                return leaderboard;
+            }
+            catch (Exception ex)
+            {
+                LogHandler.ReportCrash(ex);
+                connection.Close();
+                string[,] crash = new string[1, 1];
+                return crash;
+            }
+
         }
         public static bool UpdateCounter(string command, string counter, string username)
         {
@@ -117,51 +130,70 @@ namespace chastocaBot_Telegram
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.HelpLink);
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
             }
-
         }
         public static bool DoesExistInCounters(string command, string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Counters WHERE (command = @command) AND (userId = @userId)", connection);
-            checkCommand.Parameters.AddWithValue("@command", command);
-            checkCommand.Parameters.AddWithValue("@userId", username);
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Counters WHERE (command = @command) AND (userId = @userId)", connection);
+                checkCommand.Parameters.AddWithValue("@command", command);
+                checkCommand.Parameters.AddWithValue("@userId", username);
 
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                LogHandler.ReportCrash(ex);
+                connection.Close();
                 return false;
+            }
         }
         public static string FindCounterAnswer(string command, string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Counters WHERE command='" + command + "' AND userId='" + username + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-            string answer = "";
-            while (reader.Read())
-            {
-                answer = reader[1].ToString();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Counters WHERE command='" + command + "' AND userId='" + username + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                string answer = "";
+                while (reader.Read())
+                {
+                    answer = reader[1].ToString();
+                }
+                connection.Close();
+                if (answer.Length < 1)
+                    answer = "0";
+                return answer;
             }
-            connection.Close();
-            if (answer.Length < 1)
-                answer = "0";
-            return answer;
+            catch (Exception ex)
+            {
+                LogHandler.ReportCrash(ex);
+                connection.Close();
+                string crash = "-1";
+                return crash;
+            }
         }
 
         #endregion
@@ -169,7 +201,7 @@ namespace chastocaBot_Telegram
         #region Commands
         public static bool AddCommand(Command command)
         {
-            if (!DoesExistInCommands(command.Question))
+            if (!DoesUserHaveThisCommand(command))
             {
                 int isSuccessful;
                 try
@@ -193,16 +225,17 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
             else
                 return false;
         }
-        public static bool DeleteCommand(string question)
+        public static bool DeleteCommand(Command command)
         {
-            if (DoesExistInCommands(question))
+            if (DoesUserHaveThisCommand(command))
             {
                 int isSuccessful;
                 try
@@ -214,7 +247,7 @@ namespace chastocaBot_Telegram
                     sqlCommand = new SqlCommand
                     {
                         Connection = connection,
-                        CommandText = "DELETE FROM Commands WHERE question ='" + question + "'"
+                        CommandText = "DELETE FROM Commands WHERE question ='" + command.Question + "' AND whoAdded ='" + command.WhoAdded + "'"
                     };
                     connection.Open();
                     isSuccessful = sqlCommand.ExecuteNonQuery();
@@ -226,7 +259,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -236,7 +270,7 @@ namespace chastocaBot_Telegram
         public static bool UpdateCommand(Command command)
         {
             int isSuccessful;
-            if (DoesExistInCommands(command.Question))
+            if (DoesUserHaveThisCommand(command))
             {
                 try
                 {
@@ -259,7 +293,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -270,45 +305,121 @@ namespace chastocaBot_Telegram
         }
         public static bool DoesExistInCommands(string question)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (question = @question)", connection);
-            checkCommand.Parameters.AddWithValue("@question", question);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (question = @question)", connection);
+                checkCommand.Parameters.AddWithValue("@question", question);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
+            }
+
+        }
+        public static bool DoesUserHaveThisCommand(Command command)
+        {
+            try
+            {
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (question = @question) AND (whoAdded = @whoAdded)", connection);
+                checkCommand.Parameters.AddWithValue("@question", command.Question);
+                checkCommand.Parameters.AddWithValue("@whoAdded", command.WhoAdded);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return false;
+            }
 
         }
         public static Command GetCommand(string question)
         {
-
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Commands WHERE question='" + question + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-            Command command = new Command();
-            while (reader.Read())
-            {
-                command.Question = question;
-                command.WhoCanAccess = reader[1].ToString().TrimEnd();
-                command.Reply = reader[2].ToString().TrimEnd();
-
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Commands WHERE question='" + question + "'"// AND whoAdded='" + whoAdded + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                Command command = new Command();
+                while (reader.Read())
+                {
+                    command.Question = question;
+                    command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                    command.Reply = reader[2].ToString().TrimEnd();
+                }
+                connection.Close();
+                return command;
             }
-            connection.Close();
-            return command;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new Command();
+            }
+        }
+        public static Command GetCommandFrom(string question, string whoAdded)
+        {
+            try
+            {
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Commands WHERE question='" + question + "' AND whoAdded='" + whoAdded + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                Command command = new Command();
+                while (reader.Read())
+                {
+                    command.Question = question;
+                    command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                    command.Reply = reader[2].ToString().TrimEnd();
+
+                }
+                connection.Close();
+                return command;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new Command();
+            }
         }
         public static bool DeletesCommandsFrom(string username)
         {
@@ -334,95 +445,134 @@ namespace chastocaBot_Telegram
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.HelpLink);
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
             }
 
         }
         public static int CountCommandsFrom(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoAdded = @whoAdded)", connection);
-            checkCommand.Parameters.AddWithValue("@whoAdded", username);
-            connection.Open();
-            int count = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            return count;
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoAdded = @whoAdded)", connection);
+                checkCommand.Parameters.AddWithValue("@whoAdded", username);
+                connection.Open();
+                int count = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                return count;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return -1;
+            }
+
         }
         public static List<Command> GetCommandsFrom(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Commands WHERE whoAdded='" + username + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Commands WHERE whoAdded='" + username + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
 
-            List<Command> commandList = new List<Command>();
+                List<Command> commandList = new List<Command>();
 
-
-            while (reader.Read())
-            {
-                Command command = new Command();
-                command.Question = reader[0].ToString().TrimEnd();
-                command.WhoCanAccess = reader[1].ToString().TrimEnd();
-                command.Reply = reader[2].ToString().TrimEnd();
-                command.WhoAdded = username;
-                commandList.Add(command);
+                while (reader.Read())
+                {
+                    Command command = new Command();
+                    command.Question = reader[0].ToString().TrimEnd();
+                    command.WhoCanAccess = reader[1].ToString().TrimEnd();
+                    command.Reply = reader[2].ToString().TrimEnd();
+                    command.WhoAdded = username;
+                    commandList.Add(command);
+                }
+                connection.Close();
+                return commandList;
             }
-            connection.Close();
-            return commandList;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<Command>();
+            }
         }
         public static int CountCommandsWhoCanAccess(string rank)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoCanAccess = @whoCanAccess)", connection);
-            checkCommand.Parameters.AddWithValue("@whoCanAccess", rank);
-            connection.Open();
-            int count = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            return count;
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Commands WHERE (whoCanAccess = @whoCanAccess)", connection);
+                checkCommand.Parameters.AddWithValue("@whoCanAccess", rank);
+                connection.Open();
+                int count = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                return count;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return -1;
+            }
+
         }
         public static List<Command> GetCommandsWhoCanAccess(string rank)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Commands WHERE whoCanAccess ='" + rank + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-
-            List<Command> commandList = new List<Command>();
-
-            while (reader.Read())
-            {
-                Command command = new Command
+                connection = new SqlConnection
                 {
-                    Question = reader[0].ToString().TrimEnd(),
-                    WhoCanAccess = reader[1].ToString().TrimEnd(),
-                    Reply = reader[2].ToString().TrimEnd(),
-                    WhoAdded = reader[3].ToString().TrimEnd()
+                    ConnectionString = connecString
                 };
-                commandList.Add(command);
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Commands WHERE whoCanAccess ='" + rank + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+
+                List<Command> commandList = new List<Command>();
+
+                while (reader.Read())
+                {
+                    Command command = new Command
+                    {
+                        Question = reader[0].ToString().TrimEnd(),
+                        WhoCanAccess = reader[1].ToString().TrimEnd(),
+                        Reply = reader[2].ToString().TrimEnd(),
+                        WhoAdded = reader[3].ToString().TrimEnd()
+                    };
+                    commandList.Add(command);
+                }
+                connection.Close();
+                return commandList;
             }
-            connection.Close();
-            return commandList;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<Command>();
+            }
+
         }
 
         #endregion
@@ -454,7 +604,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -487,7 +638,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -497,62 +649,93 @@ namespace chastocaBot_Telegram
         }
         public static bool DoesExistInCocktails(string cocktailName)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Cocktails WHERE (cocktailName = @cocktailName)", connection);
-            checkCommand.Parameters.AddWithValue("@cocktailName", cocktailName);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Cocktails WHERE (cocktailName = @cocktailName)", connection);
+                checkCommand.Parameters.AddWithValue("@cocktailName", cocktailName);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
+            }
+
         }
         public static string GetCocktailRecipe(string cocktailName)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Cocktails WHERE cocktailName='" + cocktailName + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-            string answer = "";
-            while (reader.Read())
-            {
-                answer = reader[1].ToString();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Cocktails WHERE cocktailName='" + cocktailName + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                string answer = "";
+                while (reader.Read())
+                {
+                    answer = reader[1].ToString();
+                }
+                connection.Close();
+                return answer;
             }
-            connection.Close();
-            return answer;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return "";
+            }
+
         }
         public static List<string> GetCocktailNames(string type)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Cocktails WHERE type='" + type + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-            var answer = new List<string>();
-            while (reader.Read())
-            {
-                answer.Add(reader[0].ToString().TrimEnd());
-            }
-            connection.Close();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Cocktails WHERE type='" + type + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                var answer = new List<string>();
+                while (reader.Read())
+                {
+                    answer.Add(reader[0].ToString().TrimEnd());
+                }
+                connection.Close();
 
-            return answer;
+                return answer;
+
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<string>();
+            }
+
         }
 
         #endregion
@@ -560,19 +743,28 @@ namespace chastocaBot_Telegram
         #region Cocktail types        
         public static bool DoesExistInCocktailTypes(string cocktailType)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM CocktailTypes WHERE (cocktailType = @cocktailType)", connection);
-            checkCommand.Parameters.AddWithValue("@cocktailType", cocktailType);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM CocktailTypes WHERE (cocktailType = @cocktailType)", connection);
+                checkCommand.Parameters.AddWithValue("@cocktailType", cocktailType);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
+            }
         }
         public static bool AddCocktailType(string cocktailType)
         {
@@ -600,7 +792,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -609,25 +802,35 @@ namespace chastocaBot_Telegram
         }
         internal static List<string> GetCocktailTypes()
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM CocktailTypes"
-            };
-            reader = sqlCommand.ExecuteReader();
-            var answer = new List<string>();
-            while (reader.Read())
-            {
-                answer.Add(reader[0].ToString().TrimEnd());
-            }
-            connection.Close();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM CocktailTypes"
+                };
+                reader = sqlCommand.ExecuteReader();
+                var answer = new List<string>();
+                while (reader.Read())
+                {
+                    answer.Add(reader[0].ToString().TrimEnd());
+                }
+                connection.Close();
 
-            return answer;
+                return answer;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<string>();
+            }
+
         }
         #endregion        
 
@@ -660,7 +863,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.StackTrace);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -693,7 +897,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -702,105 +907,154 @@ namespace chastocaBot_Telegram
         }
         public static Location GetLocation(string name)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Locations WHERE name='" + name + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Locations WHERE name='" + name + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
 
 
-            Location location = new Location();
-            while (reader.Read())
-            {
-                CultureInfo numberFormat = (CultureInfo)CultureInfo.CurrentCulture.Clone();
-                numberFormat.NumberFormat.CurrencyDecimalSeparator = ".";
-                location.Name = name;
-                location.Latitude = float.Parse(reader[1].ToString().TrimEnd(), NumberStyles.Any, numberFormat); //reader[1].ToString();
-                location.Longitude = float.Parse(reader[2].ToString().TrimEnd(), NumberStyles.Any, numberFormat);
-                location.WhoAdded = reader[3].ToString().TrimEnd();
+                Location location = new Location();
+                while (reader.Read())
+                {
+                    CultureInfo numberFormat = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+                    numberFormat.NumberFormat.CurrencyDecimalSeparator = ".";
+                    location.Name = name;
+                    location.Latitude = float.Parse(reader[1].ToString().TrimEnd(), NumberStyles.Any, numberFormat); //reader[1].ToString();
+                    location.Longitude = float.Parse(reader[2].ToString().TrimEnd(), NumberStyles.Any, numberFormat);
+                    location.WhoAdded = reader[3].ToString().TrimEnd();
 
+                }
+                connection.Close();
+                return location;
             }
-            connection.Close();
-            return location;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new Location();
+            }
+
         }
         public static bool DoesExistInLocations(string name)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (name)='" + name + "'", connection);
-            // checkCommand.Parameters.AddWithValue("@name", name);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (name)='" + name + "'", connection);
+                // checkCommand.Parameters.AddWithValue("@name", name);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
+            }
+
         }
         public static List<string> GetLocationNamesFrom(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Locations WHERE whoAdded='" + username + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-            var answer = new List<string>();
-            while (reader.Read())
-            {
-                answer.Add(reader[0].ToString().TrimEnd());
-            }
-            connection.Close();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Locations WHERE whoAdded='" + username + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+                var answer = new List<string>();
+                while (reader.Read())
+                {
+                    answer.Add(reader[0].ToString().TrimEnd());
+                }
+                connection.Close();
 
-            return answer;
+                return answer;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<string>();
+            }
+
         }
         public static int CountLocationsFrom(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (whoAdded = @whoAdded)", connection);
-            checkCommand.Parameters.AddWithValue("@whoAdded", username);
-            connection.Open();
-            int count = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            return count;
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Locations WHERE (whoAdded = @whoAdded)", connection);
+                checkCommand.Parameters.AddWithValue("@whoAdded", username);
+                connection.Open();
+                int count = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                return count;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return 0;
+            }
+
         }
         #endregion
 
         #region Users
         public static bool DoesExistInUsers(string username, string chatId)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Users WHERE (username = @username) AND (chatId = @chatId)", connection);
-            checkCommand.Parameters.AddWithValue("@username", username);
-            checkCommand.Parameters.AddWithValue("@chatId", chatId);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Users WHERE (username = @username) AND (chatId = @chatId)", connection);
+                checkCommand.Parameters.AddWithValue("@username", username);
+                checkCommand.Parameters.AddWithValue("@chatId", chatId);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
-        }
+            }
 
+        }
         public static bool AddUser(User newUser)
         {
             if (!DoesExistInUsers(newUser.Username, newUser.ChatId))
@@ -827,7 +1081,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -860,7 +1115,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -871,56 +1127,75 @@ namespace chastocaBot_Telegram
         }
         public static User GetUser(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Users WHERE username='" + username + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Users WHERE username='" + username + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
 
-            User user = new User();
-            while (reader.Read())
-            {
-                user.Username = username;
-                user.ChatId = reader[1].ToString();
-                user.Rank = reader[2].ToString();
+                User user = new User();
+                while (reader.Read())
+                {
+                    user.Username = username;
+                    user.ChatId = reader[1].ToString();
+                    user.Rank = reader[2].ToString();
+                }
+                connection.Close();
+                return user;
             }
-            connection.Close();
-            return user;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new User();
+            }
+
         }
         internal static List<User> GetUsers()
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Users"
-            };
-            reader = sqlCommand.ExecuteReader();
-
-            List<User> Users = new List<User>();
-            while (reader.Read())
-            {
-                User user = new User
+                connection = new SqlConnection
                 {
-                    Username = reader[0].ToString().TrimEnd(),
-                    ChatId = reader[1].ToString().TrimEnd(),
-                    Rank = reader[2].ToString().TrimEnd()
+                    ConnectionString = connecString
                 };
-                Users.Add(user);
-            }
-            connection.Close();
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Users"
+                };
+                reader = sqlCommand.ExecuteReader();
 
-            return Users;
+                List<User> Users = new List<User>();
+                while (reader.Read())
+                {
+                    User user = new User
+                    {
+                        Username = reader[0].ToString().TrimEnd(),
+                        ChatId = reader[1].ToString().TrimEnd(),
+                        Rank = reader[2].ToString().TrimEnd()
+                    };
+                    Users.Add(user);
+                }
+                connection.Close();
+
+                return Users;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<User>();
+            }
         }
 
         #endregion
@@ -956,7 +1231,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -988,7 +1264,8 @@ namespace chastocaBot_Telegram
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.HelpLink);
+                    connection.Close();
+                    LogHandler.ReportCrash(ex);
                     return false;
                 }
             }
@@ -997,101 +1274,139 @@ namespace chastocaBot_Telegram
         }
         public static List<Reminder> GetRemindersFrom(string whoAdded)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Reminders WHERE whoAdded='" + whoAdded + "'"
-            };
-            reader = sqlCommand.ExecuteReader();
-
-            List<Reminder> reminderList = new List<Reminder>();
-
-
-            while (reader.Read())
-            {
-                Reminder reminder = new Reminder
+                connection = new SqlConnection
                 {
-                    Text = reader[0].ToString().TrimEnd(),
-                    Date = DateTime.Parse(reader[1].ToString().TrimEnd()),
-                    WhoAdded = reader[2].ToString().TrimEnd()
+                    ConnectionString = connecString
                 };
-                reminderList.Add(reminder);
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Reminders WHERE whoAdded='" + whoAdded + "'"
+                };
+                reader = sqlCommand.ExecuteReader();
+
+                List<Reminder> reminderList = new List<Reminder>();
+
+
+                while (reader.Read())
+                {
+                    Reminder reminder = new Reminder
+                    {
+                        Text = reader[0].ToString().TrimEnd(),
+                        Date = DateTime.Parse(reader[1].ToString().TrimEnd()),
+                        WhoAdded = reader[2].ToString().TrimEnd()
+                    };
+                    reminderList.Add(reminder);
+                }
+                connection.Close();
+                return reminderList;
             }
-            connection.Close();
-            return reminderList;
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new List<Reminder>();
+            }
+
         }
         public static bool DoesExistInReminders(Reminder reminder)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (time = @time) AND (text = @text) AND (whoAdded = @whoAdded) ", connection);
-            checkCommand.Parameters.AddWithValue("@time", reminder.Date);
-            checkCommand.Parameters.AddWithValue("@text", reminder.Text);
-            checkCommand.Parameters.AddWithValue("@whoAdded", reminder.WhoAdded);
-            connection.Open();
-            int commandExist = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            if (commandExist > 0)
-                return true;
-            else
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (time = @time) AND (text = @text) AND (whoAdded = @whoAdded) ", connection);
+                checkCommand.Parameters.AddWithValue("@time", reminder.Date);
+                checkCommand.Parameters.AddWithValue("@text", reminder.Text);
+                checkCommand.Parameters.AddWithValue("@whoAdded", reminder.WhoAdded);
+                connection.Open();
+                int commandExist = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                if (commandExist > 0)
+                    return true;
+                else
+                    return false;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
                 return false;
+            }
+
         }
         public static Reminder GetSoonestReminder()
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            connection.Open();
-            sqlCommand = new SqlCommand
-            {
-                Connection = connection,
-                CommandText = "SELECT * FROM Reminders"
-            };
-            reader = sqlCommand.ExecuteReader();
-
-            Reminder soonestReminder = new Reminder
-            {
-                Date = new DateTime(2025, 9, 19)
-            };
-
-            while (reader.Read())
-            {
-                Reminder reminder = new Reminder
+                connection = new SqlConnection
                 {
-                    Date = DateTime.Parse(reader[0].ToString().TrimEnd()),
-                    Text = reader[1].ToString().TrimEnd(),
-                    WhoAdded = reader[2].ToString().TrimEnd()
+                    ConnectionString = connecString
+                };
+                connection.Open();
+                sqlCommand = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = "SELECT * FROM Reminders"
+                };
+                reader = sqlCommand.ExecuteReader();
+
+                Reminder soonestReminder = new Reminder
+                {
+                    Date = new DateTime(2025, 9, 19)
                 };
 
-                if (DateTime.Compare(reminder.Date, soonestReminder.Date) < 0)
-                    soonestReminder = reminder;
-            }
-            connection.Close();
+                while (reader.Read())
+                {
+                    Reminder reminder = new Reminder
+                    {
+                        Date = DateTime.Parse(reader[0].ToString().TrimEnd()),
+                        Text = reader[1].ToString().TrimEnd(),
+                        WhoAdded = reader[2].ToString().TrimEnd()
+                    };
 
-            return soonestReminder;
+                    if (DateTime.Compare(reminder.Date, soonestReminder.Date) < 0)
+                        soonestReminder = reminder;
+                }
+                connection.Close();
+
+                return soonestReminder;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return new Reminder();
+            }
         }
         public static int CountRemindersFrom(string username)
         {
-            connection = new SqlConnection
+            try
             {
-                ConnectionString = connecString
-            };
-            using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (whoAdded = @whoAdded)", connection);
-            checkCommand.Parameters.AddWithValue("@whoAdded", username);
-            connection.Open();
-            int count = (int)checkCommand.ExecuteScalar();
-            connection.Close();
-            return count;
+                connection = new SqlConnection
+                {
+                    ConnectionString = connecString
+                };
+                using SqlCommand checkCommand = new SqlCommand("SELECT COUNT(*) FROM Reminders WHERE (whoAdded = @whoAdded)", connection);
+                checkCommand.Parameters.AddWithValue("@whoAdded", username);
+                connection.Open();
+                int count = (int)checkCommand.ExecuteScalar();
+                connection.Close();
+                return count;
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+                LogHandler.ReportCrash(ex);
+                return 0;
+            }
         }
 
-        #endregion
+        #endregion       
     }
 }
