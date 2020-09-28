@@ -187,7 +187,6 @@ namespace chastocaBot_Telegram
                             }
                             else if ((fragmentedMessage[0].Equals("!addcommand") || message.Equals("!acom")) && CanAccess(currentUser, "Berserker"))
                             {
-
                                 if (IsAdmin(currentUser))
                                 {
                                     if (fragmentedMessage.Length > 3)
@@ -237,28 +236,41 @@ namespace chastocaBot_Telegram
                             }
                             else if ((fragmentedMessage[0].Equals("!deletecommand") || message.Equals("!dcom")) && CanAccess(currentUser, "Berserker"))
                             {
-                                if (fragmentedMessage.Length == 2)
+                                string fromWho = currentUser.Username;
+                                if (IsAdmin(currentUser))
                                 {
-                                    string question = fragmentedMessage[1];
-                                    if (IsAdmin(currentUser))
+                                    if (fragmentedMessage.Length > 1)
                                     {
-                                        bool isSuccessful = DatabaseHandler.DeleteCommand(question);
+                                        string question = fragmentedMessage[1];
+                                        if (fragmentedMessage[2] != null)
+                                            fromWho = fragmentedMessage[2];
+
+                                        var command = DatabaseHandler.GetCommandFrom(question, fromWho);
+                                        bool isSuccessful = DatabaseHandler.DeleteCommand(command);
                                         botAnswer = "Command deleted: " + isSuccessful;
                                         await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                     }
                                     else
+                                        await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecommand <command> <whoAdded(default your username)>", ParseMode.Markdown);
+                                }
+                                else
+                                {
+                                    if (fragmentedMessage.Length == 2)
                                     {
-                                        Command command = DatabaseHandler.GetCommand(question);
-                                        if (command.WhoAdded == currentUser.Username)
+                                        string question = fragmentedMessage[1];
+                                        var command = DatabaseHandler.GetCommandFrom(question, fromWho);
+                                        if (command != null)
                                         {
-                                            bool isSuccessful = DatabaseHandler.DeleteCommand(question);
+                                            bool isSuccessful = DatabaseHandler.DeleteCommand(command);
                                             botAnswer = "Command deleted: " + isSuccessful;
                                             await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                         }
+                                        else
+                                            botAnswer = "The command doesn't exist or you don't have a permission to delete that command.";
                                     }
+                                    else
+                                        await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecommand <command>", ParseMode.Markdown);
                                 }
-                                else
-                                    await botClient.SendTextMessageAsync(e.Message.Chat, "!deletecommand <command>", ParseMode.Markdown);
                             }
                             else if ((fragmentedMessage[0].Equals("!updatecommand") || message.Equals("!ucom")) && CanAccess(currentUser, "Berserker"))
                             {
@@ -266,12 +278,12 @@ namespace chastocaBot_Telegram
                                 {
                                     Command command = new Command();
                                     command.Question = fragmentedMessage[1];
-                                    Command oldCommand = DatabaseHandler.GetCommand(command.Question);
+                                    Command oldCommand = DatabaseHandler.GetCommandFrom(command.Question, currentUser.Username);
                                     command.WhoCanAccess = oldCommand.WhoCanAccess;
                                     int startOffset = command.Question.Length + fragmentedMessage[0].Length + 2; //2 for spaces
                                     command.Reply = message[startOffset..message.Length].Trim();
 
-                                    if (oldCommand.WhoAdded == currentUser.Username || IsAdmin(currentUser))
+                                    if (oldCommand != null)
                                     {
                                         bool isSuccessful = DatabaseHandler.UpdateCommand(command);
                                         botAnswer = "Command updated: " + isSuccessful;
@@ -287,8 +299,8 @@ namespace chastocaBot_Telegram
                             {
                                 if (fragmentedMessage.Length == 2)
                                 {
-                                    string question = fragmentedMessage[1];
-                                    bool isSuccessful = DatabaseHandler.DeleteCommand(question);
+                                    string fromWho = fragmentedMessage[1];
+                                    bool isSuccessful = DatabaseHandler.DeletesCommandsFrom(fromWho);
                                     botAnswer = "Commands deleted: " + isSuccessful;
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                 }
@@ -303,6 +315,11 @@ namespace chastocaBot_Telegram
                             else if ((message.Equals("!admincommands") || message.Equals("!admincs")) && CanAccess(currentUser, "Gatekeeper"))
                             {
                                 botAnswer = Commands("Gatekeeper");
+                                await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
+                            }
+                            else if ((message.Equals("!berserkercommands") || message.Equals("!bcs")) && CanAccess(currentUser, "Gatekeeper"))
+                            {
+                                botAnswer = Commands("Berserker");
                                 await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                             }
                             else if ((fragmentedMessage[0].Equals("!addcocktail") || message.Equals("!acocktails")) && CanAccess(currentUser, "Gatekeeper")) //!addcocktail name type recipe
@@ -401,11 +418,11 @@ namespace chastocaBot_Telegram
                                 {
                                     string toWho = fragmentedMessage[1];
                                     int howMany = Int32.Parse(fragmentedMessage[2]);
-                                    int startOffset = fragmentedMessage[2].Length +fragmentedMessage[0].Length + fragmentedMessage[1].Length + 3;
+                                    int startOffset = fragmentedMessage[2].Length + fragmentedMessage[0].Length + fragmentedMessage[1].Length + 3;
                                     announce = string.Format("{0} spamming you {1} times.", username, howMany);
                                     await Announce(announce, toWho);
                                     announce = message[startOffset..message.Length].Trim();
-                                    bool isSuccessful = await BruteAnnounce(announce, toWho,howMany);
+                                    bool isSuccessful = await BruteAnnounce(announce, toWho, howMany);
                                     botAnswer = "Announce successfull: " + isSuccessful;
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                 }
@@ -457,32 +474,44 @@ namespace chastocaBot_Telegram
                             {
                                 if (IsAdmin(currentUser) || DatabaseHandler.CountRemindersFrom(username) < 6)
                                 {
+                                    bool isFormatCorrect = true;
                                     if (fragmentedMessage.Length > 3)
                                     {
                                         Reminder reminder = new Reminder();
                                         reminder.WhoAdded = username;
-                                        var y = DateTime.Now.Year;
-                                        var m = Int32.Parse(fragmentedMessage[1].Substring(3, 2));
-                                        var d = Int32.Parse(fragmentedMessage[1].Substring(0, 2));
-                                        var h = Int32.Parse(fragmentedMessage[2]);
-                                        reminder.Date = new DateTime(y, m, d, h, 0, 0);
-
-
-                                        int startOffset = fragmentedMessage[1].Length + fragmentedMessage[0].Length + fragmentedMessage[2].Length + 3; // 3 for spaces
-                                        reminder.Text = message[startOffset..message.Length].Trim();
-
-                                        if (DateTime.Compare(reminder.Date, DateTime.Now) > 0)
+                                        try
                                         {
-                                            bool isSuccessful = DatabaseHandler.AddReminder(reminder);
-                                            botAnswer = "Reminder added: " + isSuccessful;
-
-                                            soonestReminder = DatabaseHandler.GetSoonestReminder();
+                                            var y = DateTime.Now.Year;
+                                            var m = Int32.Parse(fragmentedMessage[1].Substring(3, 2));
+                                            var d = Int32.Parse(fragmentedMessage[1].Substring(0, 2));
+                                            var h = Int32.Parse(fragmentedMessage[2]);
+                                            reminder.Date = new DateTime(y, m, d, h, 0, 0);
                                         }
-                                        else
-                                            botAnswer = "You can't set a reminder earlier than now.";
+                                        catch (Exception ex)
+                                        {
+                                            isFormatCorrect = false;
+                                            LogHandler.ReportCrash(ex);
+                                            botAnswer = "!notifyme <DD.MM> <HH> <text>";
+
+                                        }
+                                        if (isFormatCorrect)
+                                        {
+                                            int startOffset = fragmentedMessage[1].Length + fragmentedMessage[0].Length + fragmentedMessage[2].Length + 3; // 3 for spaces
+                                            reminder.Text = message[startOffset..message.Length].Trim();
+
+                                            if (DateTime.Compare(reminder.Date, DateTime.Now) > 0)
+                                            {
+                                                bool isSuccessful = DatabaseHandler.AddReminder(reminder);
+                                                botAnswer = "Reminder added: " + isSuccessful;
+
+                                                soonestReminder = DatabaseHandler.GetSoonestReminder();
+                                            }
+                                            else
+                                                botAnswer = "You can't set a reminder earlier than now.";
+                                        }
                                     }
                                     else
-                                        botAnswer = "!notifyme <DD.MM> <HH>  <text>";
+                                        botAnswer = "!notifyme <DD.MM> <HH> <text>";
 
                                     await botClient.SendTextMessageAsync(e.Message.Chat, botAnswer, ParseMode.Markdown);
                                 }
@@ -635,11 +664,11 @@ namespace chastocaBot_Telegram
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.StackTrace);
+                LogHandler.ReportCrash(ex);
                 return false;
             }
         }
-        private static async Task<bool> BruteAnnounce(string announce, string toWho,int howMany)
+        private static async Task<bool> BruteAnnounce(string announce, string toWho, int howMany)
         {
             try
             {
@@ -653,7 +682,7 @@ namespace chastocaBot_Telegram
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.StackTrace);
+                LogHandler.ReportCrash(ex);
                 return false;
             }
         }
