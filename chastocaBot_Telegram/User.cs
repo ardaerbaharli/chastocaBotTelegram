@@ -4,6 +4,5 @@
     {
         public string Username { get; set; }
         public string ChatId { get; set; }
-        public string Rank { get; set; }
     }
 }

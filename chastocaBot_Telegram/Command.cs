@@ -8,7 +8,6 @@ namespace chastocaBot_Telegram
     {
         public string Question { get; set; }
         public string Reply { get; set; }
-        public string WhoCanAccess { get; set; }
         public string WhoAdded { get; set; }
     }
 }

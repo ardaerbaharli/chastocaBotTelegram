@@ -10,7 +10,8 @@ namespace chastocaBot_Telegram
             if (log.LogName == null)
                 log.LogName= "NO_LOG_NAME";
 
-            string path = "D:\\chatLogs\\TelegramBot\\" + log.LogName + ".txt";
+            string path = "D:\\chatLogs\\TelegramBot\\" + log.LogName + ".txt"; //  D:\\chatLogs\\TelegramBot\\
+            // C:\\chatLogs\\TelegramBot\\
 
             File.AppendAllText(path, LogToFile(log));
             LogToConsole(log);

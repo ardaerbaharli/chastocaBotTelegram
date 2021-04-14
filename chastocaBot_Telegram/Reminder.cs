@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace chastocaBot_Telegram
 {
     class Reminder
     {
-        public DateTime Date;
-        public string Text;
-        public string WhoAdded;
+        public DateTime Date { get; set; }
+        public string Text { get; set; }
+        public string WhoAdded { get; set; }
+        public string Name { get; set; }
     }
 }
